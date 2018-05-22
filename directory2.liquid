@@ -1,0 +1,148 @@
+
+{% assign no_avatar = 'https://people.planningcenteronline.com/static/no_photo_thumbnail.gif' %}
+
+
+
+<!-- DO SOME RESEARCH HERE ON CREATING LETTER SIZE BODY -->
+<html lang="en">
+<head>
+    <style>
+
+        body { size: 8.5in 11in; }
+        #page_body {size: 8.5in 11in; page-break-after: always; }
+        .content { margin-left: 1in; margin-right: 1in; }
+        .header { height: 2in; position: float; top: 0px; }
+        .footer {
+            bottom: 0;
+            width: 8.5in;
+            height: .83in;
+            position:absolute;
+            left: 0px;
+        }
+    </style>
+</head>
+<body>
+
+
+    {% for household in households %}
+        
+        {% assign primary-first-name = "" %}
+        {% assign primary-last-name = "" %}
+        {% assign primary-birth-date = "" %}
+        {% assign primary-phone = "" %}
+        {% assign primary-email = "" %}
+        {% assign spouse-first-name = "" %}
+        {% assign spouse-last-name = "" %}
+        {% assign spouse-birth-date = "" %}
+        {% assign spouse-phone = "" %}
+        {% assign spouse-email = "" %}
+        {% assign children = "" %}
+        {% assign address-line-a = "" %}
+        {% assign address-line-b = "" %}
+        {% assign primary-photo = no_avatar %}
+
+        {% unless household.primary_contact.marital_status != "Married" %}
+            {% for adult in household.adults %}
+                {% if adult.name != household.primary_contact.name and adult.marital_status == "Married" and adult.gender != household.primary_contact.gender %}
+                    {% assign spouse-first-name = adult.first_name %}
+                    {% assign spouse-last-name = adult.last_name %}
+                    {% assign spouse-birth-date = adult.birthdate | date: "%m/%d/%Y" %}
+                    {% assign spouse-phone = adult.primary_phone_number %}
+                    {% assign spouse-phone-loc = adult.primary_phone_number.location %}
+                    {% assign spouse-email = adult.primary_email %}
+                {% endif %}
+            {% endfor %}
+        {% endunless %}
+
+        {% for child in household.active_children %}
+            {% assign children = children | append: child.first_name | append: "  " %}
+
+            {% if child.school_type == "college" %}{% assign children = children | append: " (C) " %}{% endif %}
+        {% endfor %}
+
+        {% assign primary-first-name = household.primary_contact.first_name %}
+        {% assign primary-last-name = household.primary_contact.last_name %}
+        {% assign primary-birthdate = household.primary_contact.birthdate | date: "%m/%d/%Y" %}
+        {% if household.primary_contact.primary_phone_number %}{% assign primary-phone = household.primary_contact.primary_phone_number %}{% endif %}
+        {% assign primary-phone-loc = household.primary_contact.primary_phone_number.location %}
+        {% assign primary-email = household.primary_contact.primary_email %}
+        
+        {% if household.primary_contact.custom_tabs.directory.2018_photo %}
+            {% assign primary-photo = household.primary_contact.custom_tabs.directory.2018_photo.url %}
+        {% endif %}
+        
+        {% if primary-phone != "" %}
+            {% assign n = primary-phone | remove: "-" | remove: "." | split: "" %}
+            {% assign s = n | size %}
+            {% assign i = primary-first-name | truncate: 1, "" %}
+            
+            {% if s == 7 %}
+                {% capture primary-phone %}
+                    {{ n[0] }}{{ n[1] }}{{ n[2] }}-{{ n[3] }}{{ n[4] }}{{ n[5] }}{{ n[6] }}
+                {% endcapture %}
+            {% elsif s == 10 %}
+                {% capture primary-phone %}
+                    ({{ n[0] }}{{ n[1] }}{{ n[2] }}) {{ n[3] }}{{ n[4] }}{{ n[5] }}-{{ n[6] }}{{ n[7] }}{{ n[8] }}{{ n[9] }}
+                {% endcapture %}
+            {% else %}
+            {% endif %}
+
+            {% if primary-phone-loc == "Mobile" %}{% assign primary-phone-loc = "cell" %}{% endif %}
+            
+            {% assign primary-phone = primary-phone | append: primary-phone-loc | append: " - " | append: i %}
+        {% endif %}
+        
+        {% if spouse-phone != "" %}
+            {% assign n = spouse-phone | remove: "-" | remove: "." | split: "" %}
+            {% assign s = n | size %}
+            {% assign i = spouse-first-name | truncate: 1, "" %}
+
+            {% if s == 7 %}
+                {% capture spouse-phone %}
+                    {{ n[0] }}{{ n[1] }}{{ n[2] }}-{{ n[3] }}{{ n[4] }}{{ n[5] }}{{ n[6] }}
+                {% endcapture %}
+            {% elsif s == 10 %}
+                {% capture spouse-phone %}
+                    ({{ n[0] }}{{ n[1] }}{{ n[2] }}) {{ n[3] }}{{ n[4] }}{{ n[5] }}-{{ n[6] }}{{ n[7] }}{{ n[8] }}{{ n[9] }}
+                {% endcapture %}
+            {% else %}
+            {% endif %}
+            
+            {% if spouse-phone-loc == "Mobile" %}{% assign spouse-phone-loc = "cell" %}{% endif %}
+
+            {% assign spouse-phone = spouse-phone | append: spouse-phone-loc | append: " - " | append: i %}
+        {% endif %}
+
+        {% if household.primary_address %}
+            {% capture address-line-a %}
+                {{ household.primary_address.street_line_1 }} {{ household.primary_address.street_line_2 }}
+            {% endcapture %}
+    
+            {% capture address-line-b %}
+                {{ household.primary_address.city }}, {{ household.primary_address.state }} {{ household.primary_address.zip }}
+            {% endcapture %}
+        {% endif %}
+
+        <div style="float:left; width:50%; height:5.1in;">
+            
+            <img src="{{ primary-photo }}" width="85%" height="200px"/>
+
+            {% if household.primary_contact.last_name == spouse-last-name and spouse-last-name != "" %}
+                <div>{{ primary-first-name }} and {{ spouse-first-name }} {{ primary-last-name }}</div>
+            {% elsif spouse-last-name != "" %}
+                <div>{{ primary-first-name }} {{primary-last-name }} and {{ spouse-first-name }} {{ spouse-last-name }}</div>
+            {% else %}
+                <div>{{ primary-first-name }} {{ primary-last-name }} </div>
+            {% endif %}
+
+            <div>{{ address-line-a }} </div>
+            <div>{{ address-line-b }} </div>
+            <div>{{ primary-phone }}</div>
+            <div>{{ spouse-phone }}</div>
+            <div>{{ primary-email }}</div>
+            <div>{{ spouse-email }}</div>
+            <div>{{ children }}</div>
+        </div>
+    {% endfor %}
+</body>
+</html>
