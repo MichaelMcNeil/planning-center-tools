@@ -1,0 +1,309 @@
+{% assign sorted_people = people | sort: 'last_name' %}
+
+{% assign no_avatar = 'https://people.planningcenteronline.com/static/no_photo_thumbnail.gif'%}
+
+
+<!--***Create an index of the lists data***
+
+We can search for a particular person by iterating over the data in any of these arrays
+and comparing with a known value.  Once we find a match, we can store the current index
+of the array, and use it to retrieve a persons data from any of the other arrays, even
+once we've left our for loop.
+
+Any of the columns that you would wish to do this with need to be individually created.
+
+****For this function to continue to work the following columns must be included in the list results
+
+people.name
+emails.address
+phone_numbers.number
+people.birthdate
+
+-->
+
+<!-- Initialize arrays -->
+{% assign names_array = "" %}
+{% assign email_array = "" %}
+{% assign phone_array = "" %}
+{% assign birth_array = "" %}
+
+<!-- Iterate through the list results -->
+{% for result in results %}
+
+    <!-- Iterate through each column for this row -->
+    {% for column in list.columns %}
+
+        <!-- I don't completely understand this line, but I understand it to give me the value
+            at a particular column, row coordinate. -->
+		{% assign detail = column | column_detail column, result %}
+		
+        <!-- Only do work for the columns we want.  Would be nice to automate this down to 
+            one command.  At the top of the script initialize an array of the columns we want.. etc
+            This will create pipe-delineated strings for data in each column 
+        
+            ***Could result in an error if a field contained a pipe -->
+        {% if column.identifier == "people.name" %}
+            {% assign names_array = names_array | append: detail | append: "|" %}   
+			
+        {% elsif column.identifier == "emails.address" %}
+    	    {% assign email_array = email_array | append: detail | append: "|" %}
+
+        {% elsif column.identifier == "phone_numbers.number" %}
+			{% assign phone_array = phone_array | append: detail | append: "|" %}
+    
+        {% elsif column.identifier == "people.birthdate" %}
+			{% assign birth_array = birth_array | append: detail | append: "|" %}
+			
+		{% else %}
+            <!--Do nothing -->
+		{% endif %}
+		
+	{% endfor %}
+{% endfor %}
+
+<!-- Split the pipe delinated strings into indexable arrays -->
+{% assign names_array = names_array | split: "|" %}
+{% assign email_array = email_array | split: "|" %}
+{% assign phone_array = phone_array | split: "|" %}
+{% assign birth_array = birth_array | split: "|" %}
+
+
+<!-- DO SOME RESEARCH HERE ON CREATING LETTER SIZE BODY -->
+<html lang="en">
+<head>
+    <style>
+
+        body { size: 8.5in 11in; }
+        #page_body {size: 8.5in 11in; page-break-after: always; }
+        .content { margin-left: 1in; margin-right: 1in; }
+        .header { height: 2in; position: float; top: 0px; }
+        .footer {
+            bottom: 0;
+            width: 8.5in;
+            height: .83in;
+            position:absolute;
+            left: 0px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Iterate through all our people.  The only one who will receive output
+        are either not in a household or the head of their household. -->
+    {% for person in sorted_people %}
+    	
+        <!-- "Initialize" Values that will be used for output. I'm not sure what sort of scope a liquid variable has...
+            so I'm trying to provide some scope here -->
+    	{% assign valid_entry = false %}
+    	{% assign household_name = "" %}
+    	{% assign address_line_1 = "" %}
+    	{% assign address_line_2 = "" %}
+    	{% assign primary_phone = "" %}
+    	{% assign primary_email = "" %}
+    	{% assign secondary_phone = "" %}
+    	{% assign secondary_email = ""%}
+    	{% assign children = "" %}
+    
+    	{% assign personIsHouseMember = false %}
+        
+        
+        <!-- First, let's see if the person is a part of a household.  If so...let's iterate
+            through their households and find the one where they would be the primary contact.
+        
+            **I'm not sure what kind of behavior we would have if a person was the primary contact for multiple households. 
+            Should be investigated -->
+    	{% unless person.households.size == 0 %}  
+        {% for household in person.households %}
+    							
+            <!-- Only interact on a person if they are the primary contact of the household 
+                I've tried to uniquely identify someone by their name and the year of their birthdate -->
+          	{% if household.primary_contact.name == person.name and household.primary_contact.birthdate.year == person.birthdate.year %}
+
+			    <!-- valid_entry is false by default.  Set to true because person is a primary -->
+    		    {% assign valid_entry = true %}
+    
+				<!-- If our household head is married, we need to find their spouses information -->
+                {% if person.marital_status == "Married" %}
+													
+                    <!-- FIND THEIR SPOUSE 
+                        Planning center does not keep track of familial relationships...
+                        But we can find a spouse by looping through the adults in a household,
+                        and finding the other adult married adult who is the opposite gender 
+                    
+                        *This identification isn't fool proof.  It could become stronger if we compared anniversary dates,
+                        but that assumes we have the anniversary date for every married couple. 
+                    
+                        **This is complicated because we can't just assume a household has two adults, though that's often the case.
+                        But we have exceptions with adult children and parents and live-ins. -->
+                    {% for adult in household.adults %}
+    					
+                        <!-- This next line basically tells us when we've found our spouse. 
+                            It could fail if there were two married people in the household 
+                            that had the opposite gender of the primary. -->
+    				    {% if adult.name != household.primary_contact.name and adult.marital_status == "Married" and adult.gender != household.primary_contact.gender %}
+    														
+                            <!-- HOUSEHOLD_NAME. 
+                                (What appears under a persons picture)
+                                Accounts for married couples with different last names -->
+                            {% if adult.last_name == person.last_name %}
+                                {% capture household_name %}
+                                    {{ person.first_name }} and {{ adult.first_name }} {{ person.last_name }}
+                                {% endcapture %}
+                            {% else %} 
+                                {% capture household_name %}
+                                    {{ person.first_name }} {{ person.last_name }} and {{ adult.first_name }} {{ adult.last_name }}
+                                {% endcapture %}
+                            {% endif %}
+    					     					
+                            <!-- Now we need to find the spouses primary contact information 
+                                We will loop through our names_array till we get a name match.
+                                and a birthdate match to our spouse.  We can also compare the
+                                same column from the birth_array by grabbing the current index
+                                of our forloop with forloop.index0 
+                            
+                                We will save that index so we can pull from our other intialized arrays -->
+    						{% assign findex = nil %}
+    						{% assign bdate = adult.birthdate | date: "%m/%d/%Y" %}
+                            
+                            {% for name in names_array %}					
+                                {% if name == adult.name and bdate == birth_array[forloop.index0] %}
+                                    {% assign findex = forloop.index0 %}
+    							{% endif %}
+    						{% endfor %}
+                      		
+    						<!-- Capturing Spouse Email -->
+    						{% capture secondary_email %}
+                      		    {{ email_array[findex] }}
+                      		{% endcapture %}
+    											
+    						<!-- Phone Number -->
+    						{% if phone_array[findex] != blank %}
+    													
+    						    {% assign phone = phone_array[findex] %}
+    													
+    							<!-- Grab spouses first initial to append to phone number -->
+                                {% assign first_initial = adult.first_name | truncate: 1, "" %}
+    
+    							{% for temp in adult.phone_numbers %}
+    							    {% if temp.number == phone %}{% assign phone_type = temp.location %}{% endif %}
+    							{% endfor %}
+    												
+    							{% if phone_type == "Mobile" %}{% assign phone_type = "Cell" %}{% endif %}
+    							<!-- Planning Center doesn't force any kind of field validation on the phone number.
+									Removing -'s and .'s.  May also want to add validation to make sure string is all numbers
+									Split it into an array for formatting. -->
+                                {% assign array =  phone | remove: "-" | remove: "."| split: "" %}
+
+    							<!-- Format number as (###) ###-#### -->
+    							<!-- Probably need to add some validation for 7 digit numbers -->
+                                {% capture secondary_phone %}
+                                    ({{ array[0] }}{{ array[1] }}{{ array[2] }}) {{ array[3] }}{{ array[4] }}{{ array[5] }}-{{ array[6] }}{{ array[7] }}{{ array[8] }}{{ array[9] }} {{ phone_type }} - {{ first_initial}}
+                                {% endcapture %}
+    						{% endif %}
+        
+                            <!--Looping through household members to create a string of other adults and children.  We don't want
+							    the husband or the wife, or primary contact. -->
+					        
+                            <!-- Will need to do more data digging to identify military and college students. -->
+					        {% for household_person in household.people %}
+						        {% if household_person.birthdate != person.birthday and household_person.first_name != person.first_name and adult.birthdate != household_person.birthdate and adult.first_name != household_person.first_name %}
+							        {% assign children = children | append: household_person.first_name | append: "  " %}
+						        {% endif %}
+					        {% endfor %}
+    
+    					{% endif %}
+    				{% endfor %}		
+                {% endif %}
+    		{% else %}
+    
+    		{% assign personIsHouseMember = true %}
+    
+        {% endif %}
+    {% endfor%}  	
+    {% endunless %}
+    				
+    <!-- For people who were not members of a household, capture their info! -->
+    {% unless personIsHouseMember %}
+    				
+        {% assign valid_entry = true %}
+    				
+    	{% if household_name == blank %}
+    		{% capture household_name %}
+    			{{ person.first_name }} {{ person.last_name }}
+    		{% endcapture %}
+    	{% endif %}
+    
+    	<!-- Address -->
+    	{% capture address_line_1 %}
+            {{ person.primary_address.street_line_1 }} {{ person.primary_address.street_line_2 }}
+    	{% endcapture %}
+    
+    	{% capture address_line_2 %}
+            {{ person.primary_address.city }}, {{ person.primary_address.state }} {{ person.primary_zip_code }}
+    	{% endcapture %}
+    
+    	<!-- Find Husband Results Index -->
+    	{% assign findex = nil %}
+    	{% assign bdate = person.birthdate | date: "%m/%d/%Y" %}
+        
+        {% for name in names_array %}
+    	    {% if name == person.name and bdate == birth_array[forloop.index0] %}
+                {% assign findex = forloop.index0 %}
+    		{% endif %}
+    	{% endfor %}
+    
+		<!-- Capturing Husband Email -->
+    	{% capture primary_email %}
+            {{ email_array[findex] }}
+        {% endcapture %}
+    											
+    	<!-- Phone Number -->
+    	{% if phone_array[findex] != blank %}
+            
+            {% assign phone = phone_array[findex] %}
+            
+            <!-- Grab spouses first initial to append to phone number -->
+            {% assign first_initial = person.first_name | truncate: 1, "" %}
+    
+    		{% for temp in person.phone_numbers %}
+    		    {% if temp.number == phone %}{% assign phone_type = temp.location %}{% endif %}
+    		{% endfor %}
+    												
+            {% if phone_type == "Mobile" %}{% assign phone_type = "Cell" %}{% endif %}
+            
+                <!--Planning Center doesn't force any kind of field validation on the phone number.
+				    Removing -'s and .'s.  May also want to add validation to make sure string is all numbers
+				    Split it into an array for formatting. -->
+                {% assign array =  phone | remove: "-" | remove: "."| split: "" %}
+
+    			<!-- Format number as (###) ###-#### -->
+    			<!-- Probably need to add some validation for 7 digit numbers -->
+                {% capture primary_phone %}
+                    ({{ array[0] }}{{ array[1] }}{{ array[2] }}) {{ array[3] }}{{ array[4] }}{{ array[5] }}-{{ array[6] }}{{ array[7] }}{{ array[8] }}{{ array[9] }} {{ phone_type }} - {{ first_initial}}
+                {% endcapture %}
+    		{% endif %}
+        {% endunless %}
+        
+        <!-- Valid entry gets flagged above if we are on person who needs to be displayed.  Either a primary contact of a household or
+			a person that isn't a part of a household. -->
+            
+    	{% if valid_entry %}
+  			<div style="float:left; width: 50%; height: 5.1in;">
+                <img src="{{ person.custom_tabs.directory.2018_photo.url }}" width="85%" height="200px"/>
+                <div style="font-weight:bold;">{{ household_name }}</div>
+                
+                <!-- This assumes everyone has an address -->
+                <div>{{ address_line_1 }}</div>
+                <div>{{ address_line_2 }}</div>
+          
+                <!-- This makes phone numbers and emails optional.  Primary means a single or head of household.  Secondary implies a spouse. -->
+                {% if primary_phone != "" %}<div>{{ primary_phone }}</div> {% endif %}
+                {% if secondary_phone != "" %}<div>{{ secondary_phone }}</div> {% endif %}
+                {% if primary_email != "" %}<div>{{ primary_email }}</div> {% endif %}
+                {% if secondary_email != "" %}<div>{{ secondary_email }}</div> {% endif %}
+                {% if children != "" %}<div>{{ children }}</div> {% endif %}
+  			</div>
+    	{% endif %}
+    {% endfor %}
+</body>
+</html>
