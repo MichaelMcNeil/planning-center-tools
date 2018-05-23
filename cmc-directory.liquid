@@ -47,7 +47,15 @@
         {% assign phone-loc-array = nil %}
         {% assign f-init-array = nil %}
 
+        {% assign fname-array = nil %}
+        {% assign col-array = nil %}
+        {% assign mil-array = nil %}
+
         {% assign primary-first-name = household.primary_contact.first_name %}
+        {% assign fname-array = household.primary_contact.first_name | append: "|" %}
+        {% assign col-array = household.primary_contact.school_type | append: "|" %}
+        {% assign mil-array = household.primary_contact.custom_tabs.military.military | append: "|" %}
+
         {% assign primary-last-name = household.primary_contact.last_name %}
         {% assign primary-birthdate = household.primary_contact.birthdate | date: "%m/%d/%Y" %}
         {% if household.primary_contact.primary_phone_number %}{% assign primary-phone = household.primary_contact.primary_phone_number %}{% endif %}
@@ -66,6 +74,10 @@
                     {% assign spouse-first-name = adult.first_name %}
                     {% assign tmp-i = spouse-first-name | truncate: 1, "" %}
                     
+                    {% assign fname-array = fname-array | append: adult.first_name | append: "|" %}
+                    {% assign col-array = col-array | append: adult.school_type | append: "|" %}
+                    {% assign mil-array = mil-array | append: adult.custom_tabs.military.military | append: "|" %}
+
                     {% assign spouse-last-name = adult.last_name %}
                     {% assign spouse-birth-date = adult.birthdate | date: "%m/%d/%Y" %}
                     {% assign spouse-phone = adult.primary_phone_number %}
@@ -81,12 +93,39 @@
         {% endunless %}
 
         {% for child in household.active_children %}
-            {% assign children = children | append: child.first_name | append: "  " %}
 
-            {% if child.school_type == "college" %}{% assign children = children | append: " (C) " %}{% endif %}
+            {% assign fname-array = fname-array | append: child.first_name | append: "|" %}
+            {% assign col-array = col-array | append: child.school_type | append: "|" %}
+            {% assign mil-array = mil-array | append: child.custom_tabs.military.military | append: "|" %}
+
         {% endfor %}
 
+        {% assign temp-name = "" %}
+        {% assign fname-array = fname-array | split: "|" %}
+        {% assign col-array = col-array | split: "|" %}
+        {% assign mil-array = mil-array | split: "|" %}
         
+        {% for i in fname-array %}
+
+            {% assign temp-name = temp-name | append: i %}
+            {% if col-array[forloop.index0] == "college" %}{% assign temp-name = temp-name | append: " (C)" %}{% endif %}
+            {% if mil-array[forloop.index0] == "true" %}{% assign temp-name = temp-name | append: " (M)" %}{% endif %}
+            {% assign temp-name = temp-name | append: "|" %}
+        {% endfor %}
+        
+        {% assign fname-array = temp-name | split: "|" %}
+        
+        {% for name in fname-array %}
+            {% if forloop.index0 == 0 %}
+                {% assign primary-first-name = name %}
+            {% elsif forloop.index0 == 1 %}
+                {% assign spouse-first-name = name %}
+            {% else %}
+                {% assign children = children | append: name | append: " " %}
+            {% endif %}
+        {% endfor %}
+
+
         {% if household.primary_contact.custom_tabs.directory.2018_photo %}
             {% assign primary-photo = household.primary_contact.custom_tabs.directory.2018_photo.url %}
         {% endif %}
