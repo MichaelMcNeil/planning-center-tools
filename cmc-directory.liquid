@@ -31,12 +31,15 @@
         {% assign primary-birth-date = "" %}
         {% assign primary-phone = "" %}
         {% assign primary-email = "" %}
+        {% assign primary-weight = "" %}
         {% assign spouse-first-name = "" %}
         {% assign spouse-last-name = "" %}
         {% assign spouse-birth-date = "" %}
         {% assign spouse-phone = "" %}
         {% assign spouse-email = "" %}
+        {% assign spouse-weight = "" %}
         {% assign children = "" %}
+        {% assign child-weights = "" %}
         {% assign address-line-a = "" %}
         {% assign address-line-b = "" %}
         {% assign primary-photo = no_avatar %}
@@ -50,11 +53,13 @@
         {% assign fname-array = nil %}
         {% assign col-array = nil %}
         {% assign mil-array = nil %}
+        {% assign mem-array = nil %}
 
         {% assign primary-first-name = household.primary_contact.first_name %}
         {% assign fname-array = household.primary_contact.first_name | append: "|" %}
         {% assign col-array = household.primary_contact.school_type | append: "|" %}
         {% assign mil-array = household.primary_contact.custom_tabs.military.military | append: "|" %}
+        {% assign mem-array = household.primary_contact.membership | append: "|" %}
 
         {% assign primary-last-name = household.primary_contact.last_name %}
         {% assign primary-birthdate = household.primary_contact.birthdate | date: "%m/%d/%Y" %}
@@ -77,6 +82,7 @@
                     {% assign fname-array = fname-array | append: adult.first_name | append: "|" %}
                     {% assign col-array = col-array | append: adult.school_type | append: "|" %}
                     {% assign mil-array = mil-array | append: adult.custom_tabs.military.military | append: "|" %}
+                    {% assign mem-array = mem-array | append: adult.membership | append: "|" %}
 
                     {% assign spouse-last-name = adult.last_name %}
                     {% assign spouse-birth-date = adult.birthdate | date: "%m/%d/%Y" %}
@@ -97,34 +103,45 @@
             {% assign fname-array = fname-array | append: child.first_name | append: "|" %}
             {% assign col-array = col-array | append: child.school_type | append: "|" %}
             {% assign mil-array = mil-array | append: child.custom_tabs.military.military | append: "|" %}
+            {% assign mem-array = mem-array | append: child.membership | append: "|" %}
 
         {% endfor %}
 
         {% assign temp-name = "" %}
+        {% assign temp-style = "" %}
         {% assign fname-array = fname-array | split: "|" %}
         {% assign col-array = col-array | split: "|" %}
         {% assign mil-array = mil-array | split: "|" %}
+        {% assign mem-array = mem-array | split: "|" %}
         
         {% for i in fname-array %}
-
+            
+            {% if mem-array[forloop.index0] == "Member" %}{% assign temp-style = temp-style | append: "bold" %}{% else %}{% assign temp-style = temp-style | append: "normal" %}{% endif %} 
             {% assign temp-name = temp-name | append: i %}
             {% if col-array[forloop.index0] == "college" %}{% assign temp-name = temp-name | append: " (C)" %}{% endif %}
             {% if mil-array[forloop.index0] == "true" %}{% assign temp-name = temp-name | append: " (M)" %}{% endif %}
             {% assign temp-name = temp-name | append: "|" %}
+            {% assign temp-style = temp-style | append: "|" %}
+        
         {% endfor %}
         
         {% assign fname-array = temp-name | split: "|" %}
+        {% assign temp-style = temp-style | split: "|" %}
         
         {% for name in fname-array %}
             {% if forloop.index0 == 0 %}
                 {% assign primary-first-name = name %}
+                {% assign primary-weight = temp-style[forloop.index0] %}
             {% elsif forloop.index0 == 1 %}
                 {% assign spouse-first-name = name %}
+                {% assign spouse-weight = temp-style[forloop.index0] %}
             {% else %}
-                {% assign children = children | append: name | append: " " %}
+                {% assign children = children | append: name %}
+                {% assign child-weights = child-weights | append: temp-style[forloop.index0] | append: "|" %}
             {% endif %}
         {% endfor %}
 
+        {% assign child-weights = child-weights | split: "|" %}
 
         {% if household.primary_contact.custom_tabs.directory.2018_photo %}
             {% assign primary-photo = household.primary_contact.custom_tabs.directory.2018_photo.url %}
@@ -172,12 +189,22 @@
             
             <img src="{{ primary-photo }}" width="85%" height="200px"/>
 
+            
             {% if household.primary_contact.last_name == spouse-last-name and spouse-last-name != "" %}
-                <div>{{ primary-first-name }} and {{ spouse-first-name }} {{ primary-last-name }}</div>
+                <div>
+                <div style="display:inline-block; font-weight:{{ primary-weight }}">{{primary-first-name }}</div>
+                <div style="display:inline-block;">and</div>
+                <div style="display:inline-block; font-weight:{{ spouse-weight }}">{{ spouse-first-name }}</div> 
+                <div style="display:inline-block; font-weight:{% if primary-weight == "bold" and spouse-weight == "bold" %}{{ primary-weight }}{% endif %}">{{ primary-last-name }}</div>
+                </div>
             {% elsif spouse-last-name != "" %}
-                <div>{{ primary-first-name }} {{primary-last-name }} and {{ spouse-first-name }} {{ spouse-last-name }}</div>
+                <div>
+                <div style="display:inline-block; font-weight:{{ primary-weight }}">{{ primary-first-name }} {{primary-last-name }}</div>
+                <div style="display:inline-block;">and</div>
+                <div style="display:inline-block; font-weight:{{ spouse-weight }}">{{ spouse-first-name }} {{ spouse-last-name }}</div>
+                </div>
             {% else %}
-                <div>{{ primary-first-name }} {{ primary-last-name }} </div>
+                <div style="font-weight:{{ primary-weight }}">{{ primary-first-name }} {{ primary-last-name }} </div>
             {% endif %}
 
             <div>{{ address-line-a }} </div>
@@ -186,6 +213,8 @@
             <div>{{ phone-array-final[1] }}</div>
             <div>{{ primary-email }}</div>
             <div>{{ spouse-email }}</div>
+            
+            <!-- MUST ADD LOOP FOR CHILD DIVS -->
             <div>{{ children }}</div>
         </div>
     {% endfor %}
