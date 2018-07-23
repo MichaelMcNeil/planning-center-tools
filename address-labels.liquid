@@ -49,6 +49,7 @@ To print labels for every household in the list, set to false
                 {% assign mem-array = nil %}
 
                 {% assign primary-first-name = household.primary_contact.first_name %}
+                {% assign primary-last-name = household.primary_contact.last_name %}
                 {% assign fname-array = primary-first-name | append: "|" %}
                 {% assign mem-array = household.primary_contact.membership | append: "|" %}
 
@@ -82,7 +83,7 @@ To print labels for every household in the list, set to false
                         {% assign primary-weight = temp-style[forloop.index0] %}
                     {% elsif forloop.index0 == 1 %}
                         {% assign spouse-first-name = name %}
-                        {% assign spouse-weight = temp-style [forloop.index0] %}
+                        {% assign spouse-weight = temp-style[forloop.index0] %}
                     {% else %}
                         <!-- Code here if we wanted to add children....see the directory report --> 
                     {% endif %}
@@ -102,11 +103,9 @@ To print labels for every household in the list, set to false
 
                 <li>
                     <div class="address">
-                        The {{ household.name }}<br>
-                        {{ household.primary_address.postal_address }}
                         {% if household.primary_contact.last_name == spouse-last-name and spouse-last-name != "" %}
                             <div>
-                                <div style="display:inline-block; font-weight:{{ primary-weight }}">{{primary-first-name }}</div>
+                                <div style="display:inline-block; font-weight:{{ primary-weight }}">{{ primary-first-name }}</div>
                                 <div style="display:inline-block;">and</div>
                                 <div style="display:inline-block; font-weight:{{ spouse-weight }}">{{ spouse-first-name }}</div>
                                 <div style="display:inline-block; font-weight:{% if primary-weight == "bold" and spouse-weight == "bold" %}{{ primary-weight }}{% endif %}">{{ primary-last-name }}</div>
