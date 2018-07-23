@@ -1,0 +1,132 @@
+<!-- Quick Customization
+
+To print a label with the household name, set to true
+To print labels with the last name of the primary contact, set to false
+{% assign print_household_name = true %}
+
+To only print labels for people who have an address, set the below to true
+To print labels for every household in the list, set to false
+{% assign address_present = false %}
+
+-->
+<html>
+  <head>
+    <title>Avery Labels</title>
+    <style>
+      @page { margin: 0.5in 0in 0in 0.0825in; size: US-Letter; }
+      ul { margin: 0; padding: 0; }
+      ul.labels li {
+        margin: 0 0 0 0.13in;
+        padding: 0;
+        float: left;
+        width: 2.625in;
+        height: 1in;
+        display: block;
+        font-family: "Lato", Arial, Helvetica, sans-serif;
+        font-size: 11pt;
+      }
+      ul.labels li div.address {
+        margin-left: 0.125in;
+        margin-top: 0.1in;
+      }
+    </style>
+  </head>
+<body>
+    <ul class="labels">
+        {% for household in households %}
+            {% if household.primary_address or address_present == false %}
+                
+                {% assign primary-first-name = "" %}
+                {% assign primary-last-name = "" %}
+                {% assign spouse-first-name = "" %}
+                {% assign spouse-last-name = "" %}
+                {% assign address-line-a = "" %}
+                {% assign address-line-b = "" %}
+                {% assign primary-weight = "" %}
+                {% assign spouse-weight = "" %}
+                
+                {% assign fname-array = nil %}
+                {% assign mem-array = nil %}
+
+                {% assign primary-first-name = household.primary_contact.first_name %}
+                {% assign fname-array = primary-first-name | append: "|" %}
+                {% assign mem-array = household.primary_contact.membership | append: "|" %}
+
+                {% unless household.primary_contact.marital_status != "Married" %}
+                    {% for adult in household.adults %}
+                        {% if adult.name != household.primary_contact.name and adult.marital_status == "Married" and adult.gender != household.primary_contact.gender %}
+
+                            {% assign spouse-first-name = adult.first_name %}
+                            {% assign spouse-last-name = adult.last_name %}
+                            {% assign fname-array = fname-array | append: adult.first_name | append: "|" %}
+                            {% assign mem-array = mem-array | append: adult.membership | append: "|" %}
+
+                        {% endif %}
+                    {% endfor %}
+                {% endunless %}
+
+                {% assign temp-style = "" %}
+                {% assign fname-array = fname-array | split: "|" %}
+                {% assign mem-array = mem-array | split: "|" %}
+
+                {% for i in fname-array %}
+                    {% if mem-array[forloop.index0] == "Member" %}{% assign temp-style = temp-style | append: "bold" %}{% else %}{% assign temp-style = temp-style | append: "normal" %}{% endif %}
+                    {% assign temp-style = temp-style | append: "|" %}
+                {% endfor %}
+
+                {% assign temp-style = temp-style | split: "|" %}
+
+                {% for name in fname-array %}
+                    {% if forloop.index0 == 0 %}
+                        {% assign primary-first-name = name %}
+                        {% assign primary-weight = temp-style[forloop.index0] %}
+                    {% elsif forloop.index0 == 1 %}
+                        {% assign spouse-first-name = name %}
+                        {% assign spouse-weight = temp-style [forloop.index0] %}
+                    {% else %}
+                        <!-- Code here if we wanted to add children....see the directory report --> 
+                    {% endif %}
+                {% endfor %}
+
+                {% if household.primary_address %}
+                    {% capture address-line-a %}
+                        {{ household.primary_address.street_line_1 }} {{ household.primary_address.street_line_2 }}
+                    {% endcapture %}
+
+                    {% capture address-line-b %}
+                        {{ household.primary_address.city }}, {{ household.primary_address.state }} {{ household.primary_address.zip }}
+                    {% endcapture %}
+                {% endif %}
+
+                
+
+                <li>
+                    <div class="address">
+                        The {{ household.name }}<br>
+                        {{ household.primary_address.postal_address }}
+                        {% if household.primary_contact.last_name == spouse-last-name and spouse-last-name != "" %}
+                            <div>
+                                <div style="display:inline-block; font-weight:{{ primary-weight }}">{{primary-first-name }}</div>
+                                <div style="display:inline-block;">and</div>
+                                <div style="display:inline-block; font-weight:{{ spouse-weight }}">{{ spouse-first-name }}</div>
+                                <div style="display:inline-block; font-weight:{% if primary-weight == "bold" and spouse-weight == "bold" %}{{ primary-weight }}{% endif %}">{{ primary-last-name }}</div>
+                            </div>
+                        {% elsif spouse-last-name != "" %}
+                            <div>
+                                <div style="display:inline-block; font-weight:{{ primary-weight }}">{{ primary-first-name }} {{primary-last-name }}</div>
+                                <div style="display:inline-block;">and</div>
+                                <div style="display:inline-block; font-weight:{{ spouse-weight }}">{{ spouse-first-name }} {{ spouse-last-name }}</div>
+                            </div>
+                        {% else %}
+                            <div style="font-weight:{{ primary-weight }}">{{ primary-first-name }} {{ primary-last-name }} </div>
+                        {% endif %}
+                    </div>
+                    <div>{{ address-line-a }}</div>
+                    <div>{{ address-line-b }}</div>
+                </li> 
+
+            {% endif %}
+        {% endfor %}
+    </ul>
+</body>
+</html>
