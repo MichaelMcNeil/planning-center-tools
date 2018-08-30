@@ -48,8 +48,14 @@ To print labels for every household in the list, set to false
                 {% assign fname-array = nil %}
                 {% assign mem-array = nil %}
 
-                {% assign primary-first-name = household.primary_contact.first_name %}
-                {% assign primary-last-name = household.primary_contact.last_name %}
+                {% if household.primary_contact.custom_tabs.office_administration.custom_mailing_name != "" %}
+                    {% assign primary-first-name = household.primary_contact.custom_tabs.office_administration.custom_mailing_name %}
+                    {% assign primary-last-name = "" %}
+                {% else %}
+                    {% assign primary-first-name = household.primary_contact.first_name %}
+                    {% assign primary-last-name = household.primary_contact.last_name %}
+                {% endif%}
+
                 {% assign fname-array = primary-first-name | append: "|" %}
                 {% assign mem-array = household.primary_contact.membership | append: "|" %}
 
@@ -119,9 +125,10 @@ To print labels for every household in the list, set to false
                         {% else %}
                             <div style="font-weight:{{ primary-weight }}">{{ primary-first-name }} {{ primary-last-name }} </div>
                         {% endif %}
+                    
+                        <div>{{ address-line-a }}</div>
+                        <div>{{ address-line-b }}</div>
                     </div>
-                    <div>{{ address-line-a }}</div>
-                    <div>{{ address-line-b }}</div>
                 </li> 
 
             {% endif %}
